@@ -1,0 +1,300 @@
+---
+title: "0731建模中山华山"
+author: "xvyingrui"
+date: "2018年7月31日"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r  message=FALSE,warning=FALSE,error=FALSE}
+library(readr)
+library(tidyverse)
+library(knitr)
+library(broom)
+library(foreign)
+```
+
+```{r  message=FALSE,warning=FALSE,error=FALSE}
+
+
+oy.zs.hs.hz[,c(1:7)]=lapply(oy.zs.hs.hz[,c(1:7)],function(x){as.character(x)})
+
+oy.zs.hs.hz$age=as.numeric(oy.zs.hs.hz$age)
+
+zs.hs.hz[,c(2,4,17,18,20)]=lapply(zs.hs.hz[,c(2,4,17,18,20)],function(x){as.character(x)})
+
+
+
+cb.zs.hs.hz=left_join(oy.zs.hs.hz,zs.hs.hz,by=c('startday','oneyear','age','性别','保险类别','科室名称'))
+
+cb.zs.hs.hz1=cb.zs.hs.hz[!is.na(cb.zs.hs.hz$是否使用丹参),]
+
+kable(sapply(cb.zs.hs.hz1,function(x){sum(is.na(x))}))
+
+cb.zs.hs.hz1$科室名称1=rep('其他科',nrow(cb.zs.hs.hz1))
+
+cb.zs.hs.hz1[,c(4,5,7,37)]=lapply(cb.zs.hs.hz1[,c(4,5,7,37)],function(x){as.factor(x)})
+
+
+
+```
+
+
+###1、总心血管事件的发生次数
+#### 第2年的随访，通过控制第一年的心血管发生次数、住院天数、门诊费用和住院费用以及患者的基线特征（性别、保险类别、年龄）研究是否使用丹参对第2年心血管总次数的影响。
+
+
+```{r  message=FALSE,warning=FALSE,error=FALSE}
+
+#1、总心血管事件发生次数
+#("一年心血管次数.y","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊心血管次数.x','住院心血管次数.x','门诊费用.x','住院费用.x','门诊加住院费用.x')
+
+zs.hs.hz1=cb.zs.hs.hz1[,c("一年心血管次数.y","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊心血管次数.x','门诊费用.x','住院费用.x','门诊加住院费用.x')]
+
+#  一年心血管次数.x与门诊心血管次数.x存在多重共线性，同时住院费用和门诊加住院费用存在多重共线性。
+zs.hs.hz1=cb.zs.hs.hz1[,c("一年心血管次数.y","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊费用.x','住院费用.x')]
+
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(一年心血管次数.y, fill = 是否使用丹参)) + geom_histogram(binwidth = 1) + facet_grid(是否使用丹参 ~ 
+                                                                                                   ., margins = TRUE, scales = "free")
+
+#计算平均值和标准差
+with(zs.hs.hz1, tapply(一年心血管次数.y, 是否使用丹参, function(x) {
+  sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+#拟合负二项回归
+summary(m1 <- MASS::glm.nb(一年心血管次数.y ~., data = zs.hs.hz1))
+
+
+
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1,tapply(predicty, 是否使用丹参, function(x) {
+  sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+
+```
+
+
+###2、总心血管事件相关住院天数
+#### 第2年的随访，通过控制第一年的心血管发生次数、住院天数、门诊费用和住院费用以及患者的基线特征（性别、保险类别、年龄）研究是否使用丹参对第2年住院天数的影响。
+
+
+```{r}
+#2、总心血管事件相关住院天数
+
+zs.hs.hz1=cb.zs.hs.hz1[,c("一年心血管次数.y","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊心血管次数.x','门诊费用.x','住院费用.x','门诊加住院费用.x')]
+
+#  一年心血管次数.x与门诊心血管次数.x存在多重共线性，同时住院费用和门诊加住院费用存在多重共线性。
+
+zs.hs.hz1=cb.zs.hs.hz1[,c("住院天数.y","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊费用.x','住院费用.x')]
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(住院天数.y, fill = 是否使用丹参)) + geom_histogram(binwidth = 1) + facet_grid(是否使用丹参 ~ 
+    ., margins = TRUE, scales = "free")
+
+with(zs.hs.hz1, tapply(住院天数.y, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+#拟合负二项回归
+summary(m1 <- lm(住院天数.y ~., data = zs.hs.hz1))
+
+
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+library(car)
+vif(m1)
+```
+
+
+###3、总心血管事件相关门诊次数
+#### 第2年的随访，通过控制第一年的心血管发生次数、住院天数、门诊费用和住院费用以及患者的基线特征（性别、保险类别、年龄）研究是否使用丹参对第2年门诊次数的影响。
+
+
+
+```{r}
+#3、总心血管事件相关门诊次数
+zs.hs.hz1=cb.zs.hs.hz1[,c("门诊心血管次数.y","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊费用.x','住院费用.x')]
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(门诊心血管次数.y, fill = 是否使用丹参)) + geom_histogram(binwidth = 1) + facet_grid(是否使用丹参 ~ 
+    ., margins = TRUE, scales = "free")
+
+with(zs.hs.hz1, tapply(门诊心血管次数.y, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+#拟合负二项回归
+summary(m1 <- MASS::glm.nb(门诊心血管次数.y ~., data = zs.hs.hz1))
+
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+```
+
+
+
+###4、总心血管事件相关住院次数
+#### 第2年的随访，通过控制第一年的心血管发生次数、住院天数、门诊费用和住院费用以及患者的基线特征（性别、保险类别、年龄）研究是否使用丹参对第2年住院次数的影响。
+
+
+```{r}
+#4、总心血管事件相关住院次数
+zs.hs.hz1=cb.zs.hs.hz1[,c("住院心血管次数.y","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊费用.x','住院费用.x')]
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(住院心血管次数.y, fill = 是否使用丹参)) + geom_histogram(binwidth = 1) + facet_grid(是否使用丹参 ~ 
+    ., margins = TRUE, scales = "free")
+
+with(zs.hs.hz1, tapply(住院心血管次数.y, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+#拟合负二项回归
+summary(m1 <- MASS::glm.nb(住院心血管次数.y ~., data = zs.hs.hz1))
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+```
+
+###5、心血管资源门诊费用
+#### 第2年的随访，通过控制第一年的心血管发生次数、住院天数、门诊费用和住院费用以及患者的基线特征（性别、保险类别、年龄）研究是否使用丹参对第2年心血管资源门诊费用的影响。
+
+```{r}
+#心血管资源门诊费用
+
+zs.hs.hz1=cb.zs.hs.hz1[,c("心血管资源门诊费用","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊费用.x','住院费用.x')]
+
+write.table(zs.hs.hz1,file = 'glm3.csv',sep = ',',row.names = F)
+
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(心血管资源门诊费用, colour = 是否使用丹参)) + geom_density()
+
+
+with(zs.hs.hz1, tapply(心血管资源门诊费用, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+
+#拟合gammar分布回归
+zs.hs.hz1$心血管资源门诊费用1=zs.hs.hz1$心血管资源门诊费用+1
+m1<-glm(心血管资源门诊费用1~.,data=zs.hs.hz1[,-1],family=Gamma(link = 'log'))
+summary(m1)
+
+```
+
+
+
+###6、心血管资源住院费用
+#### 第2年的随访，通过控制第一年的心血管发生次数、住院天数、门诊费用和住院费用以及患者的基线特征（性别、保险类别、年龄）研究是否使用丹参对第2年心血管资源住院费用的影响。
+
+
+```{r}
+#心血管资源住院费用
+
+zs.hs.hz1=cb.zs.hs.hz1[,c("心血管资源住院费用","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊费用.x','住院费用.x')]
+
+write.table(zs.hs.hz1,file = 'glm2.csv',sep = ',',row.names = F)
+
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(心血管资源住院费用, colour = 是否使用丹参)) + geom_density()
+
+
+with(zs.hs.hz1, tapply(心血管资源住院费用, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+
+#拟合gammar分布回归
+zs.hs.hz1$心血管资源住院费用1=zs.hs.hz1$心血管资源住院费用+1
+ggplot(zs.hs.hz1, aes(log(心血管资源住院费用1), colour = 是否使用丹参)) + geom_density()
+
+
+m1<-glm(心血管资源住院费用1~.,data=zs.hs.hz1[,-1],family=Gamma(link = 'identity'))
+summary(m1)
+
+```
+
+
+
+###7、心血管资源门诊加住院费用
+#### 第2年的随访，通过控制第一年的心血管发生次数、住院天数、门诊费用和住院费用以及患者的基线特征（性别、保险类别、年龄）研究是否使用丹参对第2年心血管资源住院费用的影响。
+
+```{r}
+
+
+zs.hs.hz1=cb.zs.hs.hz1[,c("心血管资源门诊加住院费用","性别","保险类别","age","是否使用丹参",'一年心血管次数.x','住院天数.x','门诊费用.x','住院费用.x')]
+
+write.table(zs.hs.hz1,file = 'glm1.csv',sep = ',',row.names = F)
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(心血管资源门诊加住院费用, colour = 是否使用丹参)) + geom_density()
+
+
+with(zs.hs.hz1, tapply(心血管资源门诊加住院费用, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+
+#拟合gammar分布回归
+zs.hs.hz1$心血管资源门诊加住院费用1=zs.hs.hz1$心血管资源门诊加住院费用+1
+ggplot(zs.hs.hz1, aes(log(心血管资源门诊加住院费用1), colour = 是否使用丹参)) + geom_density()
+
+
+m1<-glm(心血管资源门诊加住院费用1~.,data=zs.hs.hz1[,-1],family=Gamma(link = 'identity'))
+summary(m1)
+
+#模型诊断
+plot(predict(m1,type = 'response'),residuals(m1,type = 'deviance'))
+anova(m1,test = 'Chisq')
+library(boot)
+h1=glm.diag(m1)
+glm.diag.plots(m1,h1)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

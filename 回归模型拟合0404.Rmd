@@ -1,0 +1,415 @@
+---
+title: "negative binomial regression"
+author: "xvyingrui"
+date: "2018年2月8日"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+一、加载需要用到的包
+```{r}
+library(tidyverse)
+library(broom)
+library(knitr)
+library(foreign)
+```
+
+
+二、数据预处理
+分析数据库为
+1、zs.hs.sy
+
+2、zs.hs.dz
+
+```{r}
+zs.hs.sy=read.csv('h:/data/gaoyue1221合并/0205/中山华山实验组obj2&3.csv')
+zs.hs.dz=read.csv('h:/data/gaoyue1221合并/0205/中山华山对照组obj2&3.csv')
+
+
+zs.hs.sy$是否使用丹参=rep(1,nrow(zs.hs.sy))
+zs.hs.dz$是否使用丹参=rep(0,nrow(zs.hs.dz))
+zs.hs.hz=rbind(zs.hs.sy,zs.hs.dz)
+zs.hs.hz$是否使用丹参=as.factor(zs.hs.hz$是否使用丹参)
+(str(zs.hs.hz))
+
+zs.hs.hz[,c("门诊费用","住院费用","门诊加住院费用","是否使用丹参","age1","性别","保险类别")]%>%write.table(file = "中山华山glm建模数据.csv",sep = ',',row.names = F)
+write.table(zs.hs.hz,file = '中山华山汇总数据.csv',sep=',',row.names=F)
+
+```
+
+三、对以下终点事件拟合负二项回归模型
+
+1、总心血管事件的发生次数
+
+2、总心血管事件相关住院天数
+
+3、总心血管事件门诊次数
+
+4、总心血管事件住院次数
+
+#。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+
+1、总心血管事件的发生次数
+
+```{r}
+#1、总心血管事件发生次数
+zs.hs.hz1=zs.hs.hz[,c("一年心血管次数","性别","保险类别","age1","是否使用丹参")]
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(一年心血管次数, fill = 是否使用丹参)) + geom_histogram(binwidth = 1) + facet_grid(是否使用丹参 ~ 
+    ., margins = TRUE, scales = "free")
+
+#计算平均值和标准差
+with(zs.hs.hz1, tapply(一年心血管次数, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+#拟合负二项回归
+summary(m1 <- MASS::glm.nb(一年心血管次数 ~., data = zs.hs.hz1))
+
+
+
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+
+```
+
+
+
+```{r}
+#模型检验
+m2 <- update(m1, . ~ . - 是否使用丹参)
+anova(m1, m2)%>%kable()
+
+```
+
+
+#。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+
+2、总心血管事件相关住院天数
+
+
+```{r}
+#2、总心血管事件相关住院天数
+zs.hs.hz1=zs.hs.hz[,c("住院天数","性别","保险类别","age1","是否使用丹参")]
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(住院天数, fill = 是否使用丹参)) + geom_histogram(binwidth = 1) + facet_grid(是否使用丹参 ~ 
+    ., margins = TRUE, scales = "free")
+
+with(zs.hs.hz1, tapply(住院天数, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+#拟合负二项回归
+summary(m1 <- lm(住院天数 ~., data = zs.hs.hz1))
+
+
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+```
+
+```{r}
+m2 <- update(m1, . ~ . - 是否使用丹参)
+anova(m1, m2)%>%kable()
+
+```
+
+
+#。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+
+3、总心血管事件相关门诊次数
+
+
+```{r}
+#3、总心血管事件相关门诊次数
+zs.hs.hz1=zs.hs.hz[,c("门诊心血管次数","性别","保险类别","age1","是否使用丹参")]
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(门诊心血管次数, fill = 是否使用丹参)) + geom_histogram(binwidth = 1) + facet_grid(是否使用丹参 ~ 
+    ., margins = TRUE, scales = "free")
+
+with(zs.hs.hz1, tapply(门诊心血管次数, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+#拟合负二项回归
+summary(m1 <- MASS::glm.nb(门诊心血管次数 ~., data = zs.hs.hz1))
+
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+```
+
+#。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+
+4、总心血管事件相关住院次数
+
+
+```{r}
+#4、总心血管事件相关住院次数
+zs.hs.hz1=zs.hs.hz[,c("住院心血管次数","性别","保险类别","age1","是否使用丹参")]
+
+#基本情况描述
+ggplot(zs.hs.hz1, aes(住院心血管次数, fill = 是否使用丹参)) + geom_histogram(binwidth = 1) + facet_grid(是否使用丹参 ~ 
+    ., margins = TRUE, scales = "free")
+
+with(zs.hs.hz1, tapply(住院心血管次数, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+#拟合负二项回归
+summary(m1 <- MASS::glm.nb(住院心血管次数 ~., data = zs.hs.hz1))
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+```
+
+
+
+三、对费用的终点事件拟合广义线性模型
+
+1、总的门诊费用
+
+2、总的住院费用
+
+3、总的住院加门诊费用
+
+
+#。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+
+1、总的门诊费用
+
+费用的数据用广义线性模型
+
+
+```{r}
+#1、总的门诊费用
+#费用基本情况描述
+
+hist(zs.hs.hz$门诊费用,border = 'yellow',col = 'blue')
+
+zs.hs.hz1=zs.hs.hz[,c("门诊费用",'性别','保险类别','age1','是否使用丹参')]
+zs.hs.hz1$门诊费用=zs.hs.hz1$门诊费用+1
+  
+
+
+sum(zs.hs.hz$门诊费用==0&zs.hs.hz$是否使用丹参==1)
+sum(zs.hs.hz$门诊费用==0&zs.hs.hz$是否使用丹参==0)
+
+hist(log(zs.hs.hz1$门诊费用),col="blue",border='yellow')
+
+
+with(zs.hs.hz1, tapply(门诊费用, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+summary(m1<-glm(门诊费用~.,data = zs.hs.hz1,family=Gamma(link = 'log')))
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+```
+
+
+#。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+
+2、总的住院费用
+
+费用的数于用广义线性模型
+
+
+
+```{r}
+#2、总的住院费用
+
+hist(zs.hs.hz$住院费用,border = 'yellow',col = 'blue')
+
+sum(zs.hs.hz$住院费用==0&zs.hs.hz$是否使用丹参==1)
+sum(zs.hs.hz$住院费用==0&zs.hs.hz$是否使用丹参==0)
+
+
+zs.hs.hz1=zs.hs.hz[,c("住院费用","性别","保险类别","age1","是否使用丹参")]
+zs.hs.hz1$住院费用=zs.hs.hz1$住院费用+1
+
+
+
+hist(zs.hs.hz1$住院费用,col="blue",border='yellow')
+
+
+
+#基本情况描述
+
+with(zs.hs.hz1, tapply(住院费用, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+summary(m1<-glm(住院费用~.,data = zs.hs.hz1,family = Gamma(link = 'identity')))
+
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+```
+
+
+
+#。。。。。。。。。。。。。。。。。。。。。。。。。。。。。
+
+3、总的门诊加住院费用
+
+费用的数据用广义线性模型拟合
+
+
+```{r}
+#3、总的门诊加住院费用
+
+sum(zs.hs.hz$门诊加住院费用==0&zs.hs.hz$是否使用丹参==1)
+sum(zs.hs.hz$门诊加住院费用==0&zs.hs.hz$是否使用丹参==0)
+
+zs.hs.hz1=zs.hs.hz[,c("门诊加住院费用","性别","保险类别","age1","是否使用丹参")]
+zs.hs.hz1$门诊加住院费用=zs.hs.hz1$门诊加住院费用+1
+ 
+hist(log(zs.hs.hz1$门诊加住院费用),col="blue",border='yellow')
+
+
+
+with(zs.hs.hz1, tapply(门诊加住院费用, 是否使用丹参, function(x) {
+    sprintf("M (SD) = %1.2f (%1.2f)", mean(x), sd(x))
+}))
+
+summary(m1<-glm(门诊加住院费用~.,data = zs.hs.hz1,family=Gamma(link = 'log')))
+
+zs.hs.hz1$predicty=fitted(m1)
+
+with(zs.hs.hz1, tapply(predicty, 是否使用丹参, function(x) {
+    sprintf("M (SE) = %1.2f (%1.2f)", mean(x), sd(x)/sqrt(length(x)))
+}))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
